@@ -1,28 +1,43 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
 	"testing"
 )
 
-func createHttpHeader() http.Header {
-	return http.Header{
-		"Content-Type":  []string{"application/json"},
-		"Authorization": []string{"ApiKey 123"},
-	}
+var headerNormal = http.Header{
+	"Authorization": []string{"ApiKey 123"},
 }
-
-var header = createHttpHeader()
+var headerMore = http.Header{
+	"Authorization": []string{"piKey 123 something"},
+}
+var headerEmpty = http.Header{
+	"Authorization": []string{""},
+}
+var headerEmpty2 = http.Header{}
 
 func TestGetAPIKey(t *testing.T) {
-	got, errGot := GetAPIKey(header)
-	want := "123"
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("expected: %v, got: %v", want, got)
+	type test struct {
+		inputHeader http.Header
+		want        string
+		errWant     error
 	}
-	if errGot != nil {
+	tests := []test{
+		{inputHeader: headerNormal, want: "123", errWant: nil},
+		{inputHeader: headerMore, want: "", errWant: ErrMalFormed},
+		{inputHeader: headerEmpty, want: "", errWant: ErrNoAuthHeaderIncluded},
+		{inputHeader: headerEmpty2, want: "", errWant: ErrNoAuthHeaderIncluded},
+	}
+	for _, tc := range tests {
 
-		t.Fatalf("expected Error: %v, got: %v", want, got)
+		got, errGot := GetAPIKey(tc.inputHeader)
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("expected: %v, got: %v", tc.want, got)
+		}
+		if !errors.Is(errGot, tc.errWant) {
+			t.Fatalf("expected Error: %v, got: %v", tc.errWant, errGot)
+		}
 	}
 }
